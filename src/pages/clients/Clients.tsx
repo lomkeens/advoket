@@ -61,11 +61,22 @@ const Clients: React.FC = () => {
         navigate('/login');
         return;
       }
+
+      // First, check if a profile exists for the user
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        toast.error('User profile not found. Please try logging out and back in.');
+        return;
+      }
       
       const clientData = {
         ...newClient,
-        created_by: user.id,
-        organization_prefix: 'AAK' // Add the required organization prefix
+        created_by: profile.id // Use the verified profile ID
       };
 
       const { data, error } = await supabase
