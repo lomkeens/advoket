@@ -37,9 +37,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Check and create profile if it doesn't exist
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (!profile) {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert([{
+                id: session.user.id,
+                email: session.user.email,
+                created_at: new Date().toISOString()
+              }]);
+              
+            if (profileError) {
+              console.error('Error creating profile:', profileError);
+            }
+          }
+        }
+        
         setLoading(false);
       }
     );
