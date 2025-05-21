@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { Session } from '@supabase/supabase-js';
+import toast from 'react-hot-toast';
 
 // Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -37,19 +38,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
         
         // Check and create profile if it doesn't exist
         if (session?.user) {
-          const { data: profile } = await supabase
+          const { data: profile, error: fetchError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
             
-          if (!profile) {
+          if (fetchError || !profile) {
+            console.log('Creating new profile for user:', session.user.id);
             const { error: profileError } = await supabase
               .from('profiles')
               .insert([{
@@ -60,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               
             if (profileError) {
               console.error('Error creating profile:', profileError);
+              toast.error('Failed to create user profile');
             }
           }
         }
@@ -78,9 +82,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError(error.message);
+      if (error) {
+        setError(error.message);
+        toast.error(error.message);
+      }
     } catch (error) {
-      setError('An unexpected error occurred');
+      const message = 'An unexpected error occurred';
+      setError(message);
+      toast.error(message);
       console.error('Sign in error:', error);
     } finally {
       setLoading(false);
@@ -95,24 +104,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         setError(error.message);
+        toast.error(error.message);
       } else if (data.user) {
-        // Create a profile for the new user
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: data.user.id,
-            email: email,
-            created_at: new Date().toISOString()
-          }]);
-
-        if (profileError) {
-          setError('Failed to create user profile');
-          // Attempt to clean up the auth user if profile creation fails
-          await supabase.auth.signOut();
-        }
+        toast.success('Account created successfully! Please check your email to confirm your account.');
       }
     } catch (error) {
-      setError('An unexpected error occurred');
+      const message = 'An unexpected error occurred';
+      setError(message);
+      toast.error(message);
       console.error('Sign up error:', error);
     } finally {
       setLoading(false);
@@ -124,9 +123,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       const { error } = await supabase.auth.signOut();
-      if (error) setError(error.message);
+      if (error) {
+        setError(error.message);
+        toast.error(error.message);
+      } else {
+        // Clear user and session state
+        setUser(null);
+        setSession(null);
+        toast.success('Signed out successfully');
+      }
     } catch (error) {
-      setError('An unexpected error occurred');
+      const message = 'An unexpected error occurred';
+      setError(message);
+      toast.error(message);
       console.error('Sign out error:', error);
     } finally {
       setLoading(false);
