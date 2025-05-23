@@ -15,15 +15,15 @@ const Clients: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (authLoading) return;
-    
-    if (!user) {
+    if (!user && !authLoading) {
       navigate('/login', { replace: true });
       return;
     }
 
-    fetchClients();
-  }, [authLoading, user, navigate]);
+    if (user) {
+      fetchClients();
+    }
+  }, [user, authLoading, navigate]);
 
   async function fetchClients() {
     try {
@@ -37,9 +37,7 @@ const Clients: React.FC = () => {
         throw error;
       }
 
-      if (data) {
-        setClients(data);
-      }
+      setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);
       toast.error('Failed to load clients');
@@ -77,7 +75,7 @@ const Clients: React.FC = () => {
       const clientData = {
         ...newClient,
         created_by: user.id,
-        organization_prefix: 'AAK' // Add the required organization prefix
+        organization_prefix: 'AAK'
       };
 
       const { data, error } = await supabase
@@ -101,15 +99,15 @@ const Clients: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="text-center py-10">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-800"></div>
-        <p className="mt-2 text-gray-500">Loading...</p>
+        <p className="ml-2 text-gray-500">Loading...</p>
       </div>
     );
   }
 
   if (!user) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
@@ -153,9 +151,9 @@ const Clients: React.FC = () => {
 
       {/* Client list */}
       {loading ? (
-        <div className="text-center py-10">
+        <div className="flex items-center justify-center h-64">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-800"></div>
-          <p className="mt-2 text-gray-500">Loading clients...</p>
+          <p className="ml-2 text-gray-500">Loading clients...</p>
         </div>
       ) : (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
