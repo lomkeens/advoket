@@ -61,6 +61,18 @@ const Clients: React.FC = () => {
         navigate('/login');
         return;
       }
+
+      // First, verify that the profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        toast.error('Profile not found. Please try logging out and back in.');
+        return;
+      }
       
       const clientData = {
         ...newClient,
