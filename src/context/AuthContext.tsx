@@ -3,19 +3,29 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { Session } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+import { supabase } from '../lib/supabase';
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: string | null;
+  email: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
   user: User | null;
+  profile: UserProfile | null;
   session: Session | null;
   supabase: SupabaseClient;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  isAdmin: () => boolean;
+  hasRole: (role: string) => boolean;
   loading: boolean;
   error: string | null;
 }
@@ -24,6 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,14 +45,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-    });
-
-    // Listen for auth changes
+    });    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Reset profile when signing out
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+          return;
+        }
         
         // Check and create profile if it doesn't exist
         if (session?.user) {
@@ -49,22 +64,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
-            
-          if (fetchError || !profile) {
+            .single();          if (fetchError || !profile) {
             console.log('Creating new profile for user:', session.user.id);
             const { error: profileError } = await supabase
               .from('profiles')
               .insert([{
                 id: session.user.id,
                 email: session.user.email,
-                created_at: new Date().toISOString()
+                full_name: session.user.email?.split('@')[0] || null,
+                role: 'user',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               }]);
               
             if (profileError) {
               console.error('Error creating profile:', profileError);
               toast.error('Failed to create user profile');
+            } else {
+              // Fetch the newly created profile
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (newProfile) {
+                setProfile(newProfile);
+              }
             }
+          } else {
+            // Set the existing profile
+            setProfile(profile);
           }
         }
         
@@ -141,14 +171,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   };
+  // Helper function to fetch profile
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+    
+    return data;
+  };
+
+  // Role-based access control helpers
+  const isAdmin = () => {
+    return profile?.role === 'admin';
+  };
+
+  const hasRole = (role: string) => {
+    return profile?.role === role;
+  };
+
+  // Profile update function
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!user?.id) {
+        throw new Error('No user logged in');
+      }
+
+      // Don't allow updating sensitive fields
+      const safeUpdates = {
+        ...updates,
+        id: undefined,
+        email: undefined,
+        role: undefined, // Only admins can update roles
+        created_at: undefined,
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          ...safeUpdates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Fetch updated profile
+      const updatedProfile = await fetchProfile(user.id);
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        toast.success('Profile updated successfully');
+      }
+    } catch (error: any) {
+      const message = error.message || 'Failed to update profile';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const value = {
     user,
+    profile,
     session,
     supabase,
     signIn,
     signUp,
     signOut,
+    updateProfile,
+    isAdmin,
+    hasRole,
     loading,
     error
   };

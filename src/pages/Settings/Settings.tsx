@@ -1,99 +1,75 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Building2, Users, Shield, Bell, Palette, Share2, Database } from 'lucide-react';
+import FirmInformation from './sections/FirmInformation';
+import SystemPreferences from './sections/SystemPreferences';
+
+type SettingSection = 'firm' | 'users' | 'security' | 'notifications' | 'customization' | 'integrations' | 'backup';
 
 const Settings = () => {
+  const [activeSection, setActiveSection] = useState<SettingSection>('firm');
+
+  const menuItems = [
+    { id: 'firm', label: 'Firm Settings', icon: Building2 },
+    { id: 'users', label: 'User Management', icon: Users },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'customization', label: 'Customization', icon: Palette },
+    { id: 'integrations', label: 'Integrations', icon: Share2 },
+    { id: 'backup', label: 'Backup & Restore', icon: Database },
+  ];
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case 'firm':
+        return <FirmInformation />;
+      case 'users':
+        return <div>User Management Content</div>;
+      case 'security':
+        return <div>Security Content</div>;
+      case 'notifications':
+        return <div>Notifications Content</div>;
+      case 'customization':
+        return <SystemPreferences />;
+      case 'integrations':
+        return <div>Integrations Content</div>;
+      case 'backup':
+        return <div>Backup & Restore Content</div>;
+      default:
+        return <FirmInformation />;
+    }
+  };
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Settings</h1>
-        
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-          {/* Profile Settings */}
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Profile Settings</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Enter your full name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Enter your email"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Appearance Settings */}
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Appearance</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Dark Mode
-                </span>
-                <button
-                  type="button"
-                  className="bg-blue-600 relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  role="switch"
-                >
-                  <span className="translate-x-5 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
-                </button>
+    <div className="min-h-screen bg-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-lg shadow">
+          <div className="grid grid-cols-12 h-[calc(100vh-12rem)]">
+            {/* Settings Navigation */}
+            <div className="col-span-3 border-r border-gray-200">
+              <nav className="h-full overflow-y-auto py-4">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveSection(item.id as SettingSection)}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium ${
+                        activeSection === item.id
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>            {/* Settings Content */}
+            <div className="col-span-9 p-6 overflow-y-auto">
+              <div className="max-w-4xl">
+                {renderContent()}
               </div>
             </div>
-          </div>
-
-          {/* Notification Settings */}
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Notifications</h2>
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <input
-                  id="email-notifications"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="email-notifications"
-                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Email Notifications
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="case-updates"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="case-updates"
-                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Case Updates
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="p-6">
-            <button
-              type="button"
-              className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Save Changes
-            </button>
           </div>
         </div>
       </div>

@@ -1,87 +1,103 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock } from 'lucide-react';
+
+interface Case {
+  id: string;
+  caseNumber: string;
+  status: 'Active' | 'Pending' | 'Urgent';
+  title: string;
+  type: string;
+  assignedTo: string;
+  nextHearing?: string;
+}
+
+const cases: Case[] = [
+  {
+    id: '1',
+    caseNumber: 'LLF/045/CT/2023',
+    status: 'Active',
+    title: 'Johnson vs. State Corporation',
+    type: 'Civil Tort - Personal Injury',
+    assignedTo: 'Sarah Johnson',
+    nextHearing: 'May 15, 2023'
+  },
+  {
+    id: '2',
+    caseNumber: 'LLF/112/DV/2023',
+    status: 'Pending',
+    title: 'Smith Divorce Case',
+    type: 'Family Law - Divorce',
+    assignedTo: 'Michael Brown',
+    nextHearing: 'May 20, 2023'
+  },
+  {
+    id: '3',
+    caseNumber: 'LLF/089/CR/2023',
+    status: 'Urgent',
+    title: 'State vs. Robert Wilson',
+    type: 'Criminal - Fraud',
+    assignedTo: 'David Miller',
+    nextHearing: 'May 10, 2023'
+  }
+];
+
+const statusColors = {
+  Active: 'bg-green-100 text-green-800',
+  Pending: 'bg-yellow-100 text-yellow-800',
+  Urgent: 'bg-red-100 text-red-800'
+};
 
 const RecentCases: React.FC = () => {
-  // Sample data
-  const cases = [
-    { 
-      id: 1, 
-      title: 'Smith v. Johnson Corp', 
-      client: 'Robert Smith', 
-      type: 'Corporate Litigation',
-      priority: 'High',
-      nextDate: '2025-03-15',
-      daysAgo: 2
-    },
-    { 
-      id: 2, 
-      title: 'Estate of Williams', 
-      client: 'Emily Williams',
-      type: 'Estate Planning',
-      priority: 'Medium',
-      nextDate: '2025-03-20',
-      daysAgo: 5
-    },
-    { 
-      id: 3, 
-      title: 'Thompson Divorce', 
-      client: 'Jessica Thompson',
-      type: 'Family Law',
-      priority: 'Medium',
-      nextDate: '2025-03-18',
-      daysAgo: 7
-    },
-    { 
-      id: 4, 
-      title: 'Zhang IP Dispute', 
-      client: 'Zhang Technologies',
-      type: 'Intellectual Property',
-      priority: 'High',
-      nextDate: '2025-03-22',
-      daysAgo: 1
-    },
-  ];
-
   return (
-    <div className="flow-root">
-      <ul className="-my-5 divide-y divide-gray-200">
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b flex items-center justify-between">
+        <h2 className="font-semibold text-lg">Recent Cases</h2>
+        <Link to="/cases" className="text-sm text-indigo-600 hover:text-indigo-800">
+          View All
+        </Link>
+      </div>
+
+      <div className="divide-y">
         {cases.map((caseItem) => (
-          <li key={caseItem.id} className="py-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                  caseItem.priority === 'High' 
-                    ? 'bg-red-100 text-red-800' 
-                    : caseItem.priority === 'Medium'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-green-100 text-green-800'
-                }`}>
-                  {caseItem.priority.charAt(0)}
+          <div key={caseItem.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center">
+                  <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-indigo-100 text-indigo-800">
+                    {caseItem.caseNumber}
+                  </span>
+                  <span className={`ml-2 inline-block px-2 py-1 text-xs font-semibold rounded ${statusColors[caseItem.status]}`}>
+                    {caseItem.status}
+                  </span>
                 </div>
+                <h3 className="mt-2 font-medium">{caseItem.title}</h3>
+                <p className="text-sm text-gray-500 mt-1">{caseItem.type}</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <Link to={`/cases/${caseItem.id}`} className="text-sm font-medium text-blue-800 hover:text-blue-900 block">
-                  {caseItem.title}
-                </Link>
-                <p className="text-sm text-gray-500 truncate">
-                  {caseItem.client} • {caseItem.type}
-                </p>
-              </div>
-              <div className="flex-shrink-0 flex flex-col items-end">
-                <div className="flex items-center text-sm text-gray-500">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  {new Date(caseItem.nextDate).toLocaleDateString()}
-                </div>
-                <div className="text-sm text-gray-500">
-                  <Clock className="h-4 w-4 inline mr-1" />
-                  {caseItem.daysAgo} days ago
-                </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Assigned to</p>
+                <p className="font-medium">{caseItem.assignedTo}</p>
+                {caseItem.nextHearing && (
+                  <p className="text-xs text-gray-500 mt-1">Next hearing: {caseItem.nextHearing}</p>
+                )}
               </div>
             </div>
-          </li>
+            <div className="mt-4 flex space-x-3">
+              <Link
+                to={`/cases/${caseItem.id}`}
+                className="text-xs px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100"
+              >
+                View Details
+              </Link>
+              <button className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200">
+                Documents
+              </button>
+              <button className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200">
+                Timeline
+              </button>
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 };

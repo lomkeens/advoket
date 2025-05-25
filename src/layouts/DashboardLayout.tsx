@@ -1,38 +1,57 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useFirm } from '../context/FirmContext';
 import Sidebar from '../components/navigation/Sidebar';
 import Header from '../components/navigation/Header';
-import MobileNav from '../components/navigation/MobileNav';
+import CreateClientModal from '../components/clients/CreateClientModal';
 
-const DashboardLayout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export default function DashboardLayout() {
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: firmLoading } = useFirm();
+
+  const handleNewClient = () => {
+    setIsClientModalOpen(true);
+  };
+
+  const handleClientCreated = () => {
+    setIsClientModalOpen(false);
+    navigate('/clients');
+  };
+
+  // Show loading state while auth or firm settings are loading
+  if (authLoading || firmLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-48"></div>
+          <div className="h-4 bg-gray-200 rounded w-32"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
-    <div className="h-full flex overflow-hidden bg-gray-50">
-      {/* Sidebar for desktop */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
-      />
-      
-      {/* Main content */}
-      <div className="flex flex-col w-0 flex-1 overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        
-        <main className="flex-1 relative overflow-y-auto focus:outline-none pb-16 md:pb-0">
-          <div className="py-6 px-4 sm:px-6 lg:px-8">
-            <Outlet />
-          </div>
-        </main>
-        
-        {/* Mobile navigation */}
-        <MobileNav />
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header onNewClient={handleNewClient} />
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
+        <CreateClientModal 
+          isOpen={isClientModalOpen}
+          onClose={() => setIsClientModalOpen(false)}
+          onClientCreated={handleClientCreated}
+        />
       </div>
     </div>
   );
-};
-
-export default DashboardLayout;
+}

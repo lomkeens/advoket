@@ -1,18 +1,30 @@
-import React from 'react';
-import { Menu, Bell, Search } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import QuickActions from './QuickActions';
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, Bell, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface HeaderProps {
-  onMenuClick: () => void;
+  onMenuClick?: () => void;
+  onNewClient?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { signOut } = useAuth();
+const Header: React.FC<HeaderProps> = ({ onMenuClick, onNewClient }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <header className="bg-white shadow">
-      <div className="px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
+    <header className="bg-white shadow-sm z-10">
+      <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center md:hidden">
           <button
             type="button"
@@ -24,65 +36,51 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </button>
         </div>
         
-        <div className="flex-1 flex items-center justify-center md:justify-end">
-          <div className="hidden sm:block w-full max-w-xs lg:max-w-md">
-            <label htmlFor="search" className="sr-only">Search</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
-              </div>
-              <input
-                id="search"
-                name="search"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
-                placeholder="Search cases, clients..."
-                type="search"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <QuickActions />
-          
-          <button
-            type="button"
-            className="p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-          >
-            <span className="sr-only">View notifications</span>
-            <Bell className="h-6 w-6" aria-hidden="true" />
-          </button>
+        <h1 className="text-2xl font-bold text-gray-800">Case Dashboard</h1>
 
-          <div className="relative flex-shrink-0">
-            <div className="group relative">
-              <button
-                type="button"
-                className="bg-white rounded-full flex text-sm ring-2 ring-primary ring-opacity-20 focus:outline-none"
-                id="user-menu"
-                aria-expanded="false"
-                aria-haspopup="true"
-              >
-                <span className="sr-only">Open user menu</span>
-                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white">
-                  A
-                </div>
-              </button>
-              
-              <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block z-10">
-                <a href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Your Profile
-                </a>
-                <a href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Settings
-                </a>
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <button className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600">
+              <Bell className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                3
+              </span>
+            </button>
+          </div>
+
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Create New</span>
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20">
                 <button
-                  onClick={signOut}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => {
+                    if (onNewClient) {
+                      onNewClient();
+                      setIsDropdownOpen(false);
+                    }
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
                 >
-                  Sign out
+                  New Client
                 </button>
+                <Link to="/cases/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600" onClick={() => setIsDropdownOpen(false)}>
+                  New Case
+                </Link>
+                <Link to="/documents/upload" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600" onClick={() => setIsDropdownOpen(false)}>
+                  New Document
+                </Link>
+                <Link to="/calendar/new" className="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600" onClick={() => setIsDropdownOpen(false)}>
+                  New Event
+                </Link>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

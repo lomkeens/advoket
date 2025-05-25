@@ -87,6 +87,67 @@ html, body {
   .dropdown-item {
     @apply block px-4 py-2 text-sm text-gray-700 hover:bg-primary-light/10 hover:text-primary transition-colors duration-200;
   }
+
+  /* Sidebar styles */
+  .sidebar {
+    transition: all 0.3s ease;
+  }
+
+  .sidebar.collapsed {
+    width: 80px;
+  }
+
+  .sidebar.collapsed .nav-text {
+    display: none;
+  }
+
+  .sidebar.collapsed .logo-text {
+    display: none;
+  }
+
+  .sidebar.collapsed .expand-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    transition: all 0.3s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Timeline styles */
+  .timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 24px;
+    height: calc(100% - 24px);
+    width: 2px;
+    background-color: #e2e8f0;
+  }
+
+  /* Document card actions */
+  .document-card:hover .document-actions {
+    opacity: 1;
+  }
+
+  /* Dropdown menu */
+  .dropdown-menu {
+    transition: all 0.2s ease;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+  }
+
+  .dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
 }
 
 /* Transitions */

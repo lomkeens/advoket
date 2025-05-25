@@ -1,40 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { X, Loader2 } from 'lucide-react';
 
 interface ClientFormProps {
   initialData?: {
     name: string;
     email: string;
     phone: string;
-    address: string;
-    company: string;
     notes: string;
-    status: 'active' | 'inactive';
+    client_number?: string;
   };
-  onSubmit: (data: any) => void;
+  onSubmit: (data: any) => Promise<void>;
+  onClose: () => void;
 }
 
-const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit }) => {
+const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, onClose }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [organizationPrefix, setOrganizationPrefix] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     email: initialData?.email || '',
     phone: initialData?.phone || '',
-    address: initialData?.address || '',
-    company: initialData?.company || '',
     notes: initialData?.notes || '',
-    status: initialData?.status || 'active',
-    created_by: user?.id || null
+    client_number: initialData?.client_number || '',
+    created_by: user?.id || null,
+    organization_prefix: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    if (user) {
+      loadOrganizationSettings();
+    }
+  }, [user]);
+
+  async function loadOrganizationSettings() {
+    try {
+      const { data, error } = await supabase
+        .from('organization_settings')
+        .select('organization_prefix')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setOrganizationPrefix(data.organization_prefix);
+        setFormData(prev => ({ ...prev, organization_prefix: data.organization_prefix }));
+      } else {
+        toast.error('Please set your organization prefix in settings before adding clients');
+        navigate('/settings/organization');
+      }
+    } catch (error: any) {
+      toast.error('Error loading organization settings');
+      console.error('Error:', error);
+    }
+  }
+
+  // Update client number preview when organization prefix changes
+  useEffect(() => {
+    const updateClientNumberPreview = async () => {
+      if (!initialData?.client_number && organizationPrefix) {
+        const { data: maxSeq } = await supabase
+          .from('clients')
+          .select('sequential_number')
+          .eq('organization_prefix', organizationPrefix)
+          .order('sequential_number', { ascending: false })
+          .limit(1)
+          .single();
+
+        const nextSeq = (maxSeq?.sequential_number || 0) + 1;
+        const paddedSequence = String(nextSeq).padStart(3, '0');
+
+        setFormData(prev => ({
+          ...prev,
+          client_number: `${organizationPrefix}/${paddedSequence}`,
+        }));
+      }
+    };
+
+    updateClientNumberPreview();
+  }, [initialData, organizationPrefix]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -43,6 +104,16 @@ const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit }) => {
       toast.error('Client name is required');
       return false;
     }
+    if (!formData.email.trim() && !formData.phone.trim()) {
+      toast.error('Either email or phone number is required');
+      return false;
+    }
+    if (!organizationPrefix) {
+      toast.error('Organization prefix must be set before creating clients');
+      navigate('/settings/organization');
+      return false;
+    }
+    // Basic email format validation if email is provided
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       toast.error('Please enter a valid email address');
       return false;
@@ -52,140 +123,132 @@ const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       await onSubmit(formData);
+      // Modal will be closed by the parent component on success
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('Submission error:', error);
+      // Error toast is handled in the parent component (Clients.tsx)
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-          Full Name *
-        </label>
-        <input
-          type="text"
-          name="name"
-          id="name"
-          required
-          value={formData.name}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="Enter client's full name"
-        />
-      </div>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-600 bg-opacity-50 flex justify-center items-center">
+      <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        {/* Modal Header */}
+        <div className="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            {initialData ? 'Edit Client' : 'Add New Client'}
+          </h3>
+          <button
+            type="button"
+            className="text-gray-400 hover:text-gray-600"
+            onClick={onClose}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email
-        </label>
-        <input
-          type="email"
-          name="email"
-          id="email"
-          value={formData.email}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="client@example.com"
-        />
-      </div>
+        {/* Modal Body - Form */}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              Client Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="name"
+              id="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              required
+            />
+          </div>
 
-      <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-          Phone
-        </label>
-        <input
-          type="tel"
-          name="phone"
-          id="phone"
-          value={formData.phone}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="+1 (555) 000-0000"
-        />
-      </div>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              type="email"
+              name="email"
+              id="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
 
-      <div>
-        <label htmlFor="company" className="block text-sm font-medium text-gray-700">
-          Company
-        </label>
-        <input
-          type="text"
-          name="company"
-          id="company"
-          value={formData.company}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="Company name"
-        />
-      </div>
+          <div className="mb-4">
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              Phone
+            </label>
+            <input
+              type="text"
+              name="phone"
+              id="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
 
-      <div>
-        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-          Address
-        </label>
-        <input
-          type="text"
-          name="address"
-          id="address"
-          value={formData.address}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="Full address"
-        />
-      </div>
+          <div className="mb-4">
+            <label htmlFor="client_number" className="block text-sm font-medium text-gray-700">
+              Client Number
+            </label>
+            <input
+              type="text"
+              name="client_number"
+              id="client_number"
+              value={formData.client_number}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed sm:text-sm"
+              readOnly
+            />
+          </div>
 
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-          Notes
-        </label>
-        <textarea
-          name="notes"
-          id="notes"
-          rows={3}
-          value={formData.notes}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="Additional notes about the client"
-        />
-      </div>
+          <div className="mb-4">
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              id="notes"
+              rows={3}
+              value={formData.notes}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            ></textarea>
+          </div>
 
-      <div>
-        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-          Status
-        </label>
-        <select
-          id="status"
-          name="status"
-          value={formData.status}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        >
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+          {/* Modal Footer - Actions */}
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-md border border-gray-300 hover:bg-gray-50"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+              {initialData ? 'Save Changes' : 'Create Client'}
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div className="pt-2">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Saving...' : 'Save Client'}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 };
 

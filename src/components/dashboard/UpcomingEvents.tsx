@@ -1,112 +1,92 @@
 import React from 'react';
-import { Calendar, Clock, FileText, MapPin, Users } from 'lucide-react';
+import { FileText, Calendar, MessageSquare, Gavel, Mail } from 'lucide-react';
+
+interface TimelineItem {
+  id: string;
+  type: 'document' | 'hearing' | 'note' | 'court' | 'notification';
+  title: string;
+  description: string;
+  time: string;
+}
+
+const timelineItems: TimelineItem[] = [
+  {
+    id: '1',
+    type: 'document',
+    title: 'New document uploaded',
+    description: 'Affidavit for Johnson vs. State Corporation',
+    time: 'Today, 10:45 AM'
+  },
+  {
+    id: '2',
+    type: 'hearing',
+    title: 'Hearing scheduled',
+    description: 'Smith Divorce Case - May 20, 2023 at 2:00 PM',
+    time: 'Yesterday, 3:30 PM'
+  },
+  {
+    id: '3',
+    type: 'note',
+    title: 'Client note added',
+    description: 'Robert Wilson requested urgent meeting',
+    time: 'Yesterday, 11:20 AM'
+  },
+  {
+    id: '4',
+    type: 'court',
+    title: 'Court update',
+    description: 'Preliminary hearing completed for Johnson case',
+    time: 'May 2, 2023, 4:15 PM'
+  },
+  {
+    id: '5',
+    type: 'notification',
+    title: 'Notification sent',
+    description: 'Document upload notification to client Smith',
+    time: 'May 1, 2023, 9:30 AM'
+  }
+];
+
+const typeConfig = {
+  document: { icon: FileText, bgColor: 'bg-indigo-500' },
+  hearing: { icon: Calendar, bgColor: 'bg-green-500' },
+  note: { icon: MessageSquare, bgColor: 'bg-purple-500' },
+  court: { icon: Gavel, bgColor: 'bg-blue-500' },
+  notification: { icon: Mail, bgColor: 'bg-yellow-500' }
+};
 
 const UpcomingEvents: React.FC = () => {
-  // Sample data
-  const events = [
-    { 
-      id: 1, 
-      title: 'Smith Deposition', 
-      date: '2025-03-15T10:00',
-      type: 'Deposition',
-      location: 'Office Conference Room',
-      relatedCase: 'Smith v. Johnson Corp',
-      icon: FileText
-    },
-    { 
-      id: 2, 
-      title: 'Team Meeting', 
-      date: '2025-03-16T14:30',
-      type: 'Meeting',
-      location: 'Main Office',
-      relatedCase: null,
-      icon: Users
-    },
-    { 
-      id: 3, 
-      title: 'Zhang Hearing', 
-      date: '2025-03-18T09:00',
-      type: 'Court',
-      location: 'District Court Room 3B',
-      relatedCase: 'Zhang IP Dispute',
-      icon: Calendar
-    },
-    { 
-      id: 4, 
-      title: 'Client Meeting - Williams', 
-      date: '2025-03-19T11:30',
-      type: 'Client',
-      location: 'Office',
-      relatedCase: 'Estate of Williams',
-      icon: Users
-    },
-  ];
-
-  // Format date and time
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
-
-  // Get event type color
-  const getEventColor = (type: string) => {
-    switch (type) {
-      case 'Court':
-        return 'bg-red-100 text-red-800';
-      case 'Deposition':
-        return 'bg-purple-100 text-purple-800';
-      case 'Client':
-        return 'bg-blue-100 text-blue-800';
-      case 'Meeting':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   return (
-    <div className="flow-root">
-      <ul className="-my-5 divide-y divide-gray-200">
-        {events.map((event) => (
-          <li key={event.id} className="py-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${getEventColor(event.type)}`}>
-                  <event.icon className="h-5 w-5" />
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b">
+        <h2 className="font-semibold text-lg">Case Timeline</h2>
+        <p className="text-sm text-gray-500">Recent activities across all cases</p>
+      </div>
+
+      <div className="p-6">
+        <div className="space-y-6">
+          {timelineItems.map((item) => {
+            const { icon: Icon, bgColor } = typeConfig[item.type];
+            
+            return (
+              <div key={item.id} className="relative timeline-item pl-8">
+                <div className={`absolute left-0 w-6 h-6 rounded-full ${bgColor} flex items-center justify-center text-white`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-medium">{item.title}</p>
+                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <div className="mt-1 text-xs text-gray-400">{item.time}</div>
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">
-                  {event.title}
-                </p>
-                {event.relatedCase && (
-                  <p className="text-sm text-blue-800">
-                    {event.relatedCase}
-                  </p>
-                )}
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <p className="truncate">{event.location}</p>
-                </div>
-              </div>
-              <div className="flex-shrink-0 text-right">
-                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                  {formatDate(event.date)}
-                </div>
-                <div className="mt-2 flex items-center text-sm text-gray-500 justify-end">
-                  <Clock className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  {formatTime(event.date)}
-                </div>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            );
+          })}
+        </div>
+
+        <button className="mt-6 w-full py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100">
+          View Full Timeline
+        </button>
+      </div>
     </div>
   );
 };
