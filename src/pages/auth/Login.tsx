@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { ArrowRight, Loader, Mail, RefreshCw } from 'lucide-react';
+import { ArrowRight, Loader, Mail, RefreshCw, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const Login: React.FC = () => {
   const { signIn } = useAuth();
@@ -14,6 +14,8 @@ const Login: React.FC = () => {
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
 
   // Clear error when inputs change
   useEffect(() => {
@@ -51,6 +53,7 @@ const Login: React.FC = () => {
     setError(null);
     setShowEmailConfirmation(false);
     setIsSubmitting(true);
+    
     try {
       console.log('[Login] Attempting sign in:', { email });
       await signIn(email, password);
@@ -58,13 +61,21 @@ const Login: React.FC = () => {
       navigate('/', { replace: true });
     } catch (err) {
       console.error('[Login] Sign in error:', err);
+      setLoginAttempts(prev => prev + 1);
+      
       if (err instanceof Error) {
         // Handle specific error cases
         if (err.message.toLowerCase().includes('invalid login credentials')) {
-          setError('Invalid email or password');
+          if (loginAttempts >= 2) {
+            setError('Invalid email or password. Please double-check your credentials or try resetting your password if you\'ve forgotten it.');
+          } else {
+            setError('Invalid email or password. Please check your credentials and try again.');
+          }
         } else if (err.message.toLowerCase().includes('email not confirmed')) {
           setShowEmailConfirmation(true);
           setError(null);
+        } else if (err.message.toLowerCase().includes('too many requests')) {
+          setError('Too many login attempts. Please wait a few minutes before trying again.');
         } else if (err.message) {
           setError(err.message);
         } else {
@@ -93,8 +104,20 @@ const Login: React.FC = () => {
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-5">
           <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
+              {loginAttempts >= 2 && error.includes('Invalid email or password') && (
+                <div className="mt-2 text-xs text-red-600">
+                  <p className="font-medium">Having trouble signing in?</p>
+                  <ul className="mt-1 list-disc list-inside space-y-1">
+                    <li>Make sure your email address is spelled correctly</li>
+                    <li>Check that Caps Lock is not enabled</li>
+                    <li>Ensure your account email has been confirmed</li>
+                    <li>Try using the "Forgot your password?" link below</li>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -165,8 +188,9 @@ const Login: React.FC = () => {
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.trim())}
               className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              placeholder="Enter your email address"
             />
           </div>
         </div>
@@ -182,18 +206,35 @@ const Login: React.FC = () => {
               </a>
             </div>
           </div>
-          <div className="mt-1">
+          <div className="mt-1 relative">
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              placeholder="Enter your password"
             />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+              )}
+            </button>
           </div>
+          {loginAttempts >= 1 && (
+            <p className="mt-1 text-xs text-gray-500">
+              Make sure your password is correct and Caps Lock is not enabled
+            </p>
+          )}
         </div>
 
         <div>
