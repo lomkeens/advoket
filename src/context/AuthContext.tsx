@@ -120,13 +120,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      // Handle the case where no profile exists (PGRST116 error)
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No profile found - this is expected for new users
+          console.log('[AuthContext] No profile found for user, setting profile to null');
+          setProfile(null);
+          return;
+        }
+        throw error;
+      }
+      
       setProfile(data);
     } catch (error: any) {
       console.error('[AuthContext] Profile fetch error:', error);
       setError(error.message);
     }
-  };  const signIn = async (email: string, password: string) => {
+  };
+
+  const signIn = async (email: string, password: string) => {
     setError(null);
     setLoading(true);
     try {
