@@ -9,6 +9,46 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      firm_settings: {        Row: {
+          id: string
+          firm_name: string
+          city: string | null
+          phone: string | null
+          email: string | null
+          website: string | null
+          logo_url: string | null
+          organization_prefix: string | null
+          created_at: string
+          updated_at: string
+          organization_id: string
+        }
+        Insert: {
+          id?: string
+          firm_name: string
+          city?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
+          logo_url?: string | null
+          organization_prefix?: string | null
+          created_at?: string
+          updated_at?: string
+          organization_id: string
+        }
+        Update: {
+          id?: string
+          firm_name?: string
+          city?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
+          logo_url?: string | null
+          organization_prefix?: string | null
+          created_at?: string
+          updated_at?: string
+          organization_id?: string
+        }
+      },
       profiles: {
         Row: {
           id: string

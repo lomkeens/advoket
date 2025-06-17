@@ -16,8 +16,11 @@ create table if not exists firm_settings (
     organization_id uuid references auth.users(id) on delete cascade
 );
 
--- Create RLS policies
+-- Create RLS policies after all columns are added
 alter table firm_settings enable row level security;
+
+-- Add organization_id column explicitly first to avoid race conditions
+alter table firm_settings add column if not exists organization_id uuid references auth.users(id) on delete cascade;
 
 create policy "Firm settings are viewable by organization members"
   on firm_settings for select

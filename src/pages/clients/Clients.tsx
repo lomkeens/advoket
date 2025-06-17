@@ -94,11 +94,9 @@ const Clients: React.FC = () => {
         .from('organization_settings')
         .select('organization_prefix')
         .eq('user_id', user.id)
-        .single();
-
-      if (settingsError || !settings) {
-        toast.error('Please set your organization prefix in settings before adding clients');
-        navigate('/settings/organization');
+        .single();      if (settingsError || !settings) {
+        toast.error('Please set your organization prefix in Firm Settings before adding clients');
+        navigate('/settings');
         return;
       }
 

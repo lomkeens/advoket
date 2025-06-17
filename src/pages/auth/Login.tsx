@@ -1,25 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { ArrowRight, Loader } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const { signIn, error, loading } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Clear error when inputs change
+  useEffect(() => {
+    setError(null);
+  }, [email, password]);
+
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signIn(email, password);
-    if (!error) {
-      navigate('/');
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      console.log('[Login] Attempting sign in:', { email });
+      await signIn(email, password);
+      console.log('[Login] Sign in successful, navigating to /');
+      navigate('/', { replace: true });
+    } catch (err) {
+      console.error('[Login] Sign in error:', err);
+      if (err instanceof Error) {
+        // Handle specific error cases
+        if (err.message.toLowerCase().includes('invalid login credentials')) {
+          setError('Invalid email or password');
+        } else if (err.message.toLowerCase().includes('email not confirmed')) {
+          setError('Please verify your email address before signing in');
+        } else if (err.message) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred. Please try again.');
+        }
+      } else if (typeof err === 'string') {
+        setError(err);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div>
-      <h2 className="text-center text-2xl font-extrabold text-gray-900 mb-5">
+    <div>      <h2 className="text-center text-2xl font-extrabold text-gray-900 mb-5">
         Sign in to your account
       </h2>
       
@@ -77,13 +108,12 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        <div>
-          <button
+        <div>          <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-800 disabled:opacity-70"
           >
-            {loading ? (
+            {isSubmitting ? (
               <Loader className="animate-spin h-5 w-5" />
             ) : (
               <span className="flex items-center">

@@ -3,6 +3,7 @@ import { X, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
+import { useFirm } from '../../context/FirmContext';
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -10,9 +11,10 @@ interface CreateClientModalProps {
   onClientCreated: () => void;
 }
 
-const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, onClientCreated }) => {  const { user } = useAuth();
+const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, onClientCreated }) => {
+  const { user } = useAuth();
+  const { firmSettings } = useFirm();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [organizationPrefix, setOrganizationPrefix] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,35 +24,16 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const organizationPrefix = firmSettings?.organization_prefix || '';
+
+  // Reset form and states when modal is opened or closed
   useEffect(() => {
-    if (user && isOpen) {
-      loadOrganizationSettings();
+    if (!isOpen) {
+      setErrors({});
+      setFormData({ name: '', email: '', phone: '', notes: '', client_number: '' });
+      setIsSubmitting(false);
     }
-  }, [user, isOpen]);
-
-  const loadOrganizationSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('organization_settings')
-        .select('organization_prefix')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-
-      if (data?.organization_prefix) {
-        setOrganizationPrefix(data.organization_prefix);
-      } else {
-        toast.error('Please set your organization prefix in settings');
-        onClose();
-        navigate('/settings/organization');
-      }
-    } catch (error) {
-      console.error('Error loading organization settings:', error);
-      toast.error('Failed to load organization settings');
-      onClose();
-    }
-  };
+  }, [isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -81,16 +64,18 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, 
     return Object.keys(newErrors).length === 0;
   };
 
+  // Only set isSubmitting to true when actually submitting the form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
+    if (!validateForm()) {
+      return;
+    }
     setIsSubmitting(true);
     try {
-      // First, verify the organization settings exist
       if (!organizationPrefix) {
-        toast.error('Organization prefix is required. Please set it up in settings first.');
-        navigate('/settings/organization');
+        toast.error('Organization prefix is required. Please complete your Firm Settings first.');
+        onClose();
+        // Optionally navigate to settings page
         return;
       }
 
@@ -106,7 +91,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, 
       };
 
       // Insert the new client - the trigger will handle the sequential numbering
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('clients')
         .insert([clientData])
         .select()
@@ -119,12 +104,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, 
       onClose();
     } catch (error: any) {
       console.error('Error creating client:', error);
-      if (error.message.includes('organization_prefix')) {
-        toast.error('Please set your organization prefix in settings first');
-        navigate('/settings/organization');
-      } else {
-        toast.error(error.message || 'Failed to create client');
-      }
+      toast.error(error.message || 'Failed to create client');
     } finally {
       setIsSubmitting(false);
     }
@@ -154,6 +134,13 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, 
               <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
                 Create New Client
               </h3>
+              {/* Show a non-blocking loading banner if submitting or loading org settings */}
+              {isSubmitting && (
+                <div className="flex items-center mt-2 mb-2 text-blue-600">
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                  Processing...
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                 <div>
@@ -226,6 +213,13 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({ isOpen, onClose, 
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                   />
                 </div>
+
+                {/* Show a message if organization prefix is missing */}
+                {!organizationPrefix && (
+                  <div className="mb-4 text-red-600 text-sm">
+                    Please set your Organization Prefix in Firm Settings before adding clients.
+                  </div>
+                )}
 
                 {organizationPrefix && (
                   <div>

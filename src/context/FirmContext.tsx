@@ -5,17 +5,14 @@ import toast from 'react-hot-toast';
 
 interface FirmSettings {
   id: string;
-  name: string;
-  address: string;
+  firm_name: string;
   city: string;
-  state: string;
-  zip_code: string;
   phone: string;
   email: string;
   website: string;
-  tax_id: string;
   logo_url: string;
   organization_id: string;
+  organization_prefix: string;
   created_at: string;
   updated_at: string;
 }
@@ -33,80 +30,45 @@ const FirmContext = createContext<FirmContextType | undefined>(undefined);
 export const FirmProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [firmSettings, setFirmSettings] = useState<FirmSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false to avoid blocking
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let timeout: NodeJS.Timeout | null = null;
-    console.log('FirmContext useEffect: user changed', user);
-    if (user) {
-      fetchFirmSettings();
-      // Fallback: if loading takes more than 10 seconds, stop loading
-      timeout = setTimeout(() => {
-        if (loading) {
-          setLoading(false);
-          setError('Timeout loading firm settings. Please refresh or contact support.');
-        }
-      }, 10000);
-    } else {
-      setFirmSettings(null);
-      setLoading(false);
-    }
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [user]);
-
   const fetchFirmSettings = async () => {
-    if (!user?.id) {
-      console.log('No user ID available');
-      setLoading(false);
-      return;
-    }
+    if (!user?.id) return;
 
     try {
       setLoading(true);
-      setError(null);
-      console.log('Fetching firm settings for organization_id:', user.id);
-
       const { data, error } = await supabase
         .from('firm_settings')
         .select('*')
         .eq('organization_id', user.id)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No data found, create default settings
-          const { data: newSettings, error: createError } = await supabase
-            .from('firm_settings')
-            .insert([{
-              name: '',
-              organization_id: user.id
-            }])
-            .select()
-            .single();
-
-          if (createError) throw createError;
-          
-          console.log('Created default firm settings:', newSettings);
-          setFirmSettings(newSettings);
-          return;
-        }
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
-      console.log('Firm settings fetched successfully:', data);
-      setFirmSettings(data);
-    } catch (error: any) {
-      console.error('Error in firm settings operation:', error);
-      setError(error.message);
-      toast.error('Failed to load firm settings');
+      // If no settings exist, that's okay - the form will handle creation
+      if (data) {
+        setFirmSettings(data);
+      }
+    } catch (err: any) {
+      console.error('Error fetching firm settings:', err);
+      setError(err.message);
     } finally {
-      console.log('Firm settings operation finished. Loading:', false);
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchFirmSettings();
+    } else {
+      setFirmSettings(null);
+      setLoading(false);
+      setError(null);
+    }
+  }, [user]);
 
   const updateFirmSettings = async (settings: Partial<FirmSettings>) => {
     try {
@@ -116,7 +78,6 @@ export const FirmProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!user) throw new Error('No authenticated user');
 
       if (!firmSettings?.id) {
-        // Create new settings
         const { data, error } = await supabase
           .from('firm_settings')
           .insert([{
@@ -130,7 +91,6 @@ export const FirmProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setFirmSettings(data);
         toast.success('Firm settings created successfully');
       } else {
-        // Update existing settings
         const { data, error } = await supabase
           .from('firm_settings')
           .update(settings)
@@ -142,22 +102,23 @@ export const FirmProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setFirmSettings(data);
         toast.success('Firm settings updated successfully');
       }
-    } catch (error: any) {
-      console.error('Error updating firm settings:', error);
-      setError(error.message);
+    } catch (err: any) {
+      console.error('FirmContext updateFirmSettings: Error:', err);
+      setError(err.message);
       toast.error('Failed to update firm settings');
-      throw error;
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
   const uploadLogo = async (file: File): Promise<string> => {
-    try {
-      if (!user) throw new Error('No authenticated user');
+    if (!user) throw new Error('No authenticated user');
 
+    try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
       const { error: uploadError } = await supabase.storage
         .from('logos')
         .upload(fileName, file);
@@ -169,9 +130,9 @@ export const FirmProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .getPublicUrl(fileName);
 
       return publicUrl;
-    } catch (error: any) {
-      console.error('Error uploading logo:', error);
-      throw error;
+    } catch (err: any) {
+      console.error('Error uploading logo:', err);
+      throw err;
     }
   };
 

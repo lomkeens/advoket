@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { X, Loader2 } from 'lucide-react';
+import { useFirm } from '../../context/FirmContext';
 
 interface ClientFormProps {
   initialData?: {
@@ -19,9 +19,9 @@ interface ClientFormProps {
 
 const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, onClose }) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const { firmSettings } = useFirm();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [organizationPrefix, setOrganizationPrefix] = useState<string | null>(null);
+  const organizationPrefix = firmSettings?.organization_prefix || '';
 
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
@@ -33,41 +33,11 @@ const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, onClose 
     organization_prefix: '',
   });
 
-  useEffect(() => {
-    if (user) {
-      loadOrganizationSettings();
-    }
-  }, [user]);
-
-  async function loadOrganizationSettings() {
-    try {
-      const { data, error } = await supabase
-        .from('organization_settings')
-        .select('organization_prefix')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        setOrganizationPrefix(data.organization_prefix);
-        setFormData(prev => ({ ...prev, organization_prefix: data.organization_prefix }));
-      } else {
-        toast.error('Please set your organization prefix in settings before adding clients');
-        navigate('/settings/organization');
-      }
-    } catch (error: any) {
-      toast.error('Error loading organization settings');
-      console.error('Error:', error);
-    }
-  }
-
   // Update client number preview when organization prefix changes
   useEffect(() => {
-    const updateClientNumberPreview = async () => {
-      if (!initialData?.client_number && organizationPrefix) {
+    if (!initialData?.client_number && organizationPrefix) {
+      // Fetch the next sequence number for preview
+      (async () => {
         const { data: maxSeq } = await supabase
           .from('clients')
           .select('sequential_number')
@@ -75,18 +45,14 @@ const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, onClose 
           .order('sequential_number', { ascending: false })
           .limit(1)
           .single();
-
         const nextSeq = (maxSeq?.sequential_number || 0) + 1;
         const paddedSequence = String(nextSeq).padStart(3, '0');
-
         setFormData(prev => ({
           ...prev,
           client_number: `${organizationPrefix}/${paddedSequence}`,
         }));
-      }
-    };
-
-    updateClientNumberPreview();
+      })();
+    }
   }, [initialData, organizationPrefix]);
 
   const handleChange = (
@@ -109,11 +75,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, onClose 
       return false;
     }
     if (!organizationPrefix) {
-      toast.error('Organization prefix must be set before creating clients');
-      navigate('/settings/organization');
+      toast.error('Organization prefix must be set in Firm Settings before creating clients');
       return false;
     }
-    // Basic email format validation if email is provided
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       toast.error('Please enter a valid email address');
       return false;
@@ -199,19 +163,26 @@ const ClientForm: React.FC<ClientFormProps> = ({ initialData, onSubmit, onClose 
             />
           </div>
 
-          <div className="mb-4">
-            <label htmlFor="client_number" className="block text-sm font-medium text-gray-700">
-              Client Number
-            </label>
-            <input
-              type="text"
-              name="client_number"
-              id="client_number"
-              value={formData.client_number}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed sm:text-sm"
-              readOnly
-            />
-          </div>
+          {!organizationPrefix && (
+            <div className="mb-4 text-red-600 text-sm">
+              Please set your Organization Prefix in Firm Settings before adding clients.
+            </div>
+          )}
+          {organizationPrefix && (
+            <div className="mb-4">
+              <label htmlFor="client_number" className="block text-sm font-medium text-gray-700">
+                Client Number
+              </label>
+              <input
+                type="text"
+                name="client_number"
+                id="client_number"
+                value={formData.client_number}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100 cursor-not-allowed sm:text-sm"
+                readOnly
+              />
+            </div>
+          )}
 
           <div className="mb-4">
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
