@@ -44,14 +44,18 @@ export const FirmProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('organization_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        // If no settings exist (PGRST116), that's okay - don't treat it as an error
+        if (error.code === 'PGRST116') {
+          setFirmSettings(null);
+          setError(null);
+          return;
+        }
         throw error;
       }
 
-      // If no settings exist, that's okay - the form will handle creation
-      if (data) {
-        setFirmSettings(data);
-      }
+      setFirmSettings(data);
+      setError(null);
     } catch (err: any) {
       console.error('Error fetching firm settings:', err);
       setError(err.message);

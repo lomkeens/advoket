@@ -13,7 +13,7 @@ interface Case {
 
 const cases: Case[] = [
   {
-    id: '1',
+    id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     caseNumber: 'LLF/045/CT/2023',
     status: 'Active',
     title: 'Johnson vs. State Corporation',
@@ -22,7 +22,7 @@ const cases: Case[] = [
     nextHearing: 'May 15, 2023'
   },
   {
-    id: '2',
+    id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
     caseNumber: 'LLF/112/DV/2023',
     status: 'Pending',
     title: 'Smith Divorce Case',
@@ -31,7 +31,7 @@ const cases: Case[] = [
     nextHearing: 'May 20, 2023'
   },
   {
-    id: '3',
+    id: 'c3d4e5f6-g7h8-9012-cdef-345678901234',
     caseNumber: 'LLF/089/CR/2023',
     status: 'Urgent',
     title: 'State vs. Robert Wilson',
