@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { ArrowRight, Loader } from 'lucide-react';
+import { ArrowRight, Loader, Mail, RefreshCw } from 'lucide-react';
 
 const Login: React.FC = () => {
   const { signIn } = useAuth();
@@ -11,16 +11,45 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   // Clear error when inputs change
   useEffect(() => {
     setError(null);
+    setShowEmailConfirmation(false);
   }, [email, password]);
+
+  // Handle resending confirmation email
+  const handleResendConfirmation = async () => {
+    if (!email) return;
+    
+    setIsResendingConfirmation(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      
+      if (error) {
+        setError(`Failed to resend confirmation email: ${error.message}`);
+      } else {
+        setConfirmationSent(true);
+        setError(null);
+      }
+    } catch (err) {
+      setError('Failed to resend confirmation email. Please try again.');
+    } finally {
+      setIsResendingConfirmation(false);
+    }
+  };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setShowEmailConfirmation(false);
     setIsSubmitting(true);
     try {
       console.log('[Login] Attempting sign in:', { email });
@@ -34,14 +63,20 @@ const Login: React.FC = () => {
         if (err.message.toLowerCase().includes('invalid login credentials')) {
           setError('Invalid email or password');
         } else if (err.message.toLowerCase().includes('email not confirmed')) {
-          setError('Please verify your email address before signing in');
+          setShowEmailConfirmation(true);
+          setError(null);
         } else if (err.message) {
           setError(err.message);
         } else {
           setError('An unknown error occurred. Please try again.');
         }
       } else if (typeof err === 'string') {
-        setError(err);
+        if (err.toLowerCase().includes('email not confirmed')) {
+          setShowEmailConfirmation(true);
+          setError(null);
+        } else {
+          setError(err);
+        }
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
@@ -50,7 +85,8 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div>      <h2 className="text-center text-2xl font-extrabold text-gray-900 mb-5">
+    <div>
+      <h2 className="text-center text-2xl font-extrabold text-gray-900 mb-5">
         Sign in to your account
       </h2>
       
@@ -59,6 +95,58 @@ const Login: React.FC = () => {
           <div className="flex">
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmailConfirmation && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-5">
+          <div className="flex">
+            <Mail className="h-5 w-5 text-blue-400 mt-0.5" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">
+                Email Confirmation Required
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p className="mb-2">
+                  Please check your email inbox (including spam/junk folders) for a confirmation email from us. 
+                  Click the confirmation link in that email to verify your account.
+                </p>
+                {confirmationSent ? (
+                  <div className="bg-green-100 border border-green-300 rounded-md p-2 mb-2">
+                    <p className="text-green-800 text-xs">
+                      ✓ Confirmation email sent! Please check your inbox.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mb-2 text-xs">
+                    Didn't receive the email? You can request a new one below.
+                  </p>
+                )}
+                <button
+                  onClick={handleResendConfirmation}
+                  disabled={isResendingConfirmation || confirmationSent}
+                  className="inline-flex items-center px-3 py-1 border border-blue-300 rounded-md text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResendingConfirmation ? (
+                    <>
+                      <Loader className="animate-spin h-3 w-3 mr-1" />
+                      Sending...
+                    </>
+                  ) : confirmationSent ? (
+                    <>
+                      <Mail className="h-3 w-3 mr-1" />
+                      Email Sent
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Resend Confirmation Email
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -108,7 +196,8 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        <div>          <button
+        <div>
+          <button
             type="submit"
             disabled={isSubmitting}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-800 disabled:opacity-70"
