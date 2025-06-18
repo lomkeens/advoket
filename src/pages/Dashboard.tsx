@@ -1,219 +1,272 @@
 import React from 'react';
 import { Clock, Calendar, Gavel, FileText, BarChart, FolderOpen, Download, Share2, User, MapPin } from 'lucide-react';
 import DashboardCard from '../components/dashboard/DashboardCard';
-import UpcomingEvents from '../components/dashboard/UpcomingEvents'; // This component seems to be the Case Timeline
-import RecentCases from '../components/dashboard/RecentCases';
-
-// Note: A dedicated RecentDocuments component could be created for better organization,
-// but for now, the structure is added directly here to match the HTML reference.
+import UpcomingEvents from '../components/dashboard/UpcomingEvents';
+import { useDashboardStats } from '../hooks/useDashboardStats';
+import { Link } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
+  const { stats, recentCases, upcomingHearings, recentDocuments, loading, error } = useDashboardStats();
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-full">
+        <div className="flex items-center justify-center h-64">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-800"></div>
+          <p className="ml-2 text-gray-500">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-full">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formatChange = (change: number, type: 'percentage' | 'count' = 'percentage') => {
+    if (type === 'percentage') {
+      const sign = change > 0 ? '+' : '';
+      return `${sign}${change}% from last month`;
+    } else {
+      const sign = change > 0 ? '+' : '';
+      return `${sign}${change} this week`;
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-full">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <DashboardCard
           title="Total Cases"
-          value="142"
+          value={stats?.total_cases?.toString() || '0'}
           icon={FolderOpen}
-          change="+12% from last month"
-          isPositive={true}
+          change={formatChange(stats?.cases_change || 0)}
+          isPositive={(stats?.cases_change || 0) >= 0}
         />
         <DashboardCard
           title="Active Cases"
-          value="87"
-          icon={BarChart} // Using BarChart as a placeholder for tasks icon
-          change="-5% from last month"
-          isPositive={false}
+          value={stats?.active_cases?.toString() || '0'}
+          icon={BarChart}
+          change={formatChange(stats?.active_cases_change || 0)}
+          isPositive={(stats?.active_cases_change || 0) >= 0}
           bgColor="bg-blue-100"
           iconColor="text-blue-600"
         />
         <DashboardCard
           title="Upcoming Hearings"
-          value="14"
+          value={stats?.upcoming_hearings?.toString() || '0'}
           icon={Gavel}
-          change="+3 this week"
-          isPositive={true}
+          change={formatChange(stats?.hearings_change || 0, 'count')}
+          isPositive={(stats?.hearings_change || 0) >= 0}
           bgColor="bg-purple-100"
           iconColor="text-purple-600"
         />
         <DashboardCard
           title="Documents"
-          value="1,247"
+          value={stats?.total_documents?.toString() || '0'}
           icon={FileText}
-          change="+32% from last month"
-          isPositive={true}
+          change={formatChange(stats?.documents_change || 0)}
+          isPositive={(stats?.documents_change || 0) >= 0}
           bgColor="bg-green-100"
           iconColor="text-green-600"
         />
       </div>
 
-      {/* Main dashboard content: Recent Cases, Upcoming Hearings, Case Timeline, Recent Documents */}
+      {/* Main dashboard content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Recent Cases and Upcoming Hearings */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          <RecentCases />
+          {/* Recent Cases */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold text-lg">Recent Cases</h2>
+              <Link to="/cases" className="text-sm text-indigo-600 hover:text-indigo-800">
+                View All
+              </Link>
+            </div>
 
-          {/* Upcoming Hearings Section - Matches structure from reference */}
+            <div className="divide-y">
+              {recentCases.length > 0 ? (
+                recentCases.map((caseItem) => (
+                  <div key={caseItem.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center">
+                          <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-indigo-100 text-indigo-800">
+                            {caseItem.case_type || 'General'}
+                          </span>
+                          <span className={`ml-2 inline-block px-2 py-1 text-xs font-semibold rounded ${
+                            caseItem.status === 'open' 
+                              ? 'bg-green-100 text-green-800'
+                              : caseItem.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {caseItem.status.charAt(0).toUpperCase() + caseItem.status.slice(1)}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 font-medium">{caseItem.title}</h3>
+                        <p className="text-sm text-gray-500 mt-1">Client: {caseItem.client_name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">
+                          {caseItem.assigned_to_name ? `Assigned to ${caseItem.assigned_to_name}` : 'Unassigned'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Created: {new Date(caseItem.created_at).toLocaleDateString()}
+                        </p>
+                        {caseItem.due_date && (
+                          <p className="text-xs text-gray-500">
+                            Due: {new Date(caseItem.due_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-4 flex space-x-3">
+                      <Link
+                        to={`/cases/${caseItem.id}`}
+                        className="text-xs px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100"
+                      >
+                        View Details
+                      </Link>
+                      <Link
+                        to={`/clients/${caseItem.client_id}`}
+                        className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
+                      >
+                        View Client
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-500">
+                  No cases found. <Link to="/cases" className="text-indigo-600 hover:underline">Create your first case</Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Hearings Section */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <h2 className="font-semibold text-lg">Upcoming Hearings</h2>
-              <button className="text-sm text-indigo-600 hover:text-indigo-800">View Calendar</button>
+              <Link to="/calendar" className="text-sm text-indigo-600 hover:text-indigo-800">View Calendar</Link>
             </div>
             <div className="divide-y">
-              {/* Hearing Item 1 */}
-              <div className="p-6 hover:bg-gray-50 transition-colors duration-200">
-                <div className="flex items-start">
-                  <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600 mr-4">
-                    <Gavel className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">Johnson vs. State Corporation</h3>
-                    <p className="text-sm text-gray-500 mt-1">Civil Tort - Personal Injury</p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                      <Clock className="mr-2 h-4 w-4" />
-                      <span>May 15, 2023 • 10:30 AM</span>
-                      <span className="mx-2">•</span>
-                      <MapPin className="mr-2 h-4 w-4" /> {/* Using MapPin for location */}
-                      <span>District Court Room 4B</span>
+              {upcomingHearings.length > 0 ? (
+                upcomingHearings.map((hearing) => (
+                  <div key={hearing.id} className="p-6 hover:bg-gray-50 transition-colors duration-200">
+                    <div className="flex items-start">
+                      <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600 mr-4">
+                        <Gavel className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{hearing.title}</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {hearing.case_title ? `Case: ${hearing.case_title}` : 'General hearing'}
+                        </p>
+                        {hearing.client_name && (
+                          <p className="text-sm text-gray-500">Client: {hearing.client_name}</p>
+                        )}
+                        <div className="mt-2 flex items-center text-sm text-gray-500">
+                          <Clock className="mr-2 h-4 w-4" />
+                          <span>{new Date(hearing.start_date).toLocaleString()}</span>
+                          {hearing.location && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <MapPin className="mr-2 h-4 w-4" />
+                              <span>{hearing.location}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-500">
+                  No upcoming hearings scheduled. <Link to="/calendar" className="text-indigo-600 hover:underline">Schedule a hearing</Link>
                 </div>
-              </div>
-              {/* Hearing Item 2 */}
-              <div className="p-6 hover:bg-gray-50 transition-colors duration-200">
-                <div className="flex items-start">
-                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 mr-4">
-                    <Gavel className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">State vs. Robert Wilson</h3>
-                    <p className="text-sm text-gray-500 mt-1">Criminal - Fraud</p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                      <Clock className="mr-2 h-4 w-4" />
-                      <span>May 10, 2023 • 2:15 PM</span>
-                      <span className="mx-2">•</span>
-                      <MapPin className="mr-2 h-4 w-4" />
-                      <span>Criminal Court Room 2A</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Hearing Item 3 */}
-              <div className="p-6 hover:bg-gray-50 transition-colors duration-200">
-                <div className="flex items-start">
-                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 mr-4">
-                    <Gavel className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">Smith Divorce Case</h3>
-                    <p className="text-sm text-gray-500 mt-1">Family Law - Divorce</p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                      <Clock className="mr-2 h-4 w-4" />
-                      <span>May 20, 2023 • 9:00 AM</span>
-                      <span className="mx-2">•</span>
-                      <MapPin className="mr-2 h-4 w-4" />
-                      <span>Family Court Room 5C</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Right Column: Case Timeline and Recent Documents */}
         <div className="flex flex-col gap-6">
-          {/* Case Timeline Section - Uses UpcomingEvents component */}
+          {/* Case Timeline Section */}
           <UpcomingEvents />
 
-          {/* Recent Documents Section - Matches structure from reference */}
+          {/* Recent Documents Section */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <h2 className="font-semibold text-lg">Recent Documents</h2>
-              <button className="text-sm text-indigo-600 hover:text-indigo-800">View All</button>
+              <Link to="/documents" className="text-sm text-indigo-600 hover:text-indigo-800">View All</Link>
             </div>
             <div className="divide-y">
-              {/* Document Item 1 */}
-              <div className="p-6 hover:bg-gray-50 transition-colors duration-200 document-card relative">
-                <div className="flex items-start">
-                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 mr-4">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">Affidavit of John Johnson.pdf</h3>
-                    <p className="text-sm text-gray-500 mt-1">Johnson vs. State Corporation</p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                      <User className="mr-2 h-4 w-4" /> {/* Using User for uploaded by */}
-                      <span>Uploaded by Sarah Johnson</span>
-                      <span className="mx-2">•</span>
-                      <Clock className="mr-2 h-4 w-4" /> {/* Using Clock for time */}
-                      <span>Today, 10:45 AM</span>
+              {recentDocuments.length > 0 ? (
+                recentDocuments.map((document) => (
+                  <div key={document.id} className="p-6 hover:bg-gray-50 transition-colors duration-200 document-card relative">
+                    <div className="flex items-start">
+                      <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 mr-4">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium">{document.name}</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {document.case_title ? `Case: ${document.case_title}` : 'General document'}
+                        </p>
+                        {document.client_name && (
+                          <p className="text-sm text-gray-500">Client: {document.client_name}</p>
+                        )}
+                        <div className="mt-2 flex items-center text-sm text-gray-500">
+                          <User className="mr-2 h-4 w-4" />
+                          <span>Uploaded by {document.uploaded_by_name || 'Unknown'}</span>
+                          <span className="mx-2">•</span>
+                          <Clock className="mr-2 h-4 w-4" />
+                          <span>{new Date(document.uploaded_at).toLocaleDateString()}</span>
+                        </div>
+                        {document.size && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatFileSize(document.size)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="document-actions absolute right-6 top-6 opacity-0 transition-opacity duration-200 flex space-x-2">
+                      <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                        <Download className="h-4 w-4" />
+                      </button>
+                      <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                        <Share2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-gray-500">
+                  No documents uploaded yet. <Link to="/documents" className="text-indigo-600 hover:underline">Upload your first document</Link>
                 </div>
-                <div className="document-actions absolute right-6 top-6 opacity-0 transition-opacity duration-200 flex space-x-2">
-                  <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                    <Download className="h-4 w-4" />
-                  </button>
-                  <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                    <Share2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              {/* Document Item 2 */}
-              <div className="p-6 hover:bg-gray-50 transition-colors duration-200 document-card relative">
-                <div className="flex items-start">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center text-green-600 mr-4">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">Motion to Dismiss.docx</h3>
-                    <p className="text-sm text-gray-500 mt-1">State vs. Robert Wilson</p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                       <User className="mr-2 h-4 w-4" />
-                      <span>Uploaded by David Miller</span>
-                      <span className="mx-2">•</span>
-                       <Clock className="mr-2 h-4 w-4" />
-                      <span>Yesterday, 4:30 PM</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="document-actions absolute right-6 top-6 opacity-0 transition-opacity duration-200 flex space-x-2">
-                  <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                    <Download className="h-4 w-4" />
-                  </button>
-                  <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                    <Share2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              {/* Document Item 3 */}
-              <div className="p-6 hover:bg-gray-50 transition-colors duration-200 document-card relative">
-                <div className="flex items-start">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 mr-4">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">Evidence Photo 1.jpg</h3>
-                    <p className="text-sm text-gray-500 mt-1">Smith Divorce Case</p>
-                    <div className="mt-2 flex items-center text-sm text-gray-500">
-                       <User className="mr-2 h-4 w-4" />
-                      <span>Uploaded by Michael Brown</span>
-                      <span className="mx-2">•</span>
-                       <Clock className="mr-2 h-4 w-4" />
-                      <span>May 2, 2023, 11:15 AM</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="document-actions absolute right-6 top-6 opacity-0 transition-opacity duration-200 flex space-x-2">
-                  <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                    <Download className="h-4 w-4" />
-                  </button>
-                  <button className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
-                    <Share2 className="h-4 w-4" />
-                  </button>
-                </div>              </div>
+              )}
             </div>
           </div>
         </div>
