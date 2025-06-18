@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, Calendar, Gavel, FileText, BarChart, FolderOpen, Download, Share2, User, MapPin } from 'lucide-react';
 import DashboardCard from '../components/dashboard/DashboardCard';
 import UpcomingEvents from '../components/dashboard/UpcomingEvents';
+import ConnectionTest from '../components/debug/ConnectionTest';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { Link } from 'react-router-dom';
 
@@ -22,13 +23,16 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div className="p-6 bg-gray-50 min-h-full">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
           <div className="flex">
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           </div>
         </div>
+        
+        {/* Show connection test when there's an error */}
+        <ConnectionTest />
       </div>
     );
   }
@@ -53,6 +57,13 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-full">
+      {/* Debug section - only show if there are issues */}
+      {(!stats || error) && (
+        <div className="mb-6">
+          <ConnectionTest />
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <DashboardCard
