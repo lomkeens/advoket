@@ -3,6 +3,8 @@ import { Clock, Calendar, Gavel, FileText, BarChart, FolderOpen, Download, Share
 import DashboardCard from '../components/dashboard/DashboardCard';
 import UpcomingEvents from '../components/dashboard/UpcomingEvents';
 import ConnectionTest from '../components/debug/ConnectionTest';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { DashboardCardSkeleton, CaseListSkeleton } from '../components/ui/SkeletonLoader';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { Link } from 'react-router-dom';
 
@@ -12,9 +14,32 @@ const Dashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 bg-gray-50 min-h-full">
-        <div className="flex items-center justify-center h-64">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-800"></div>
-          <p className="ml-2 text-gray-500">Loading dashboard...</p>
+        {/* Modern loading state with skeletons */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <LoadingSpinner size="sm" />
+            <span className="text-lg font-medium text-gray-600">Loading your dashboard...</span>
+          </div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <DashboardCardSkeleton />
+          <DashboardCardSkeleton />
+          <DashboardCardSkeleton />
+          <DashboardCardSkeleton />
+        </div>
+
+        {/* Main content skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <CaseListSkeleton />
+            <CaseListSkeleton />
+          </div>
+          <div className="flex flex-col gap-6">
+            <CaseListSkeleton />
+            <CaseListSkeleton />
+          </div>
         </div>
       </div>
     );
@@ -23,10 +48,11 @@ const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div className="p-6 bg-gray-50 min-h-full">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-md">
           <div className="flex">
             <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <h3 className="text-sm font-medium text-red-800">Dashboard Error</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
         </div>
@@ -57,12 +83,11 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-full">
-      {/* Debug section - only show if there are issues */}
-      {(!stats || error) && (
-        <div className="mb-6">
-          <ConnectionTest />
-        </div>
-      )}
+      {/* Welcome message */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back!</h1>
+        <p className="text-gray-600">Here's what's happening with your cases today.</p>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

@@ -5,6 +5,7 @@ import { useFirm } from '../context/FirmContext';
 import Sidebar from '../components/navigation/Sidebar';
 import Header from '../components/navigation/Header';
 import CreateClientModal from '../components/clients/CreateClientModal';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 export default function DashboardLayout() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -21,18 +22,14 @@ export default function DashboardLayout() {
     navigate('/clients');
   };
 
-  // First render - show minimal loading state
+  // Show modern loading spinner while auth is loading
   if (authLoading) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        <div className="flex-1 flex flex-col justify-center items-center">
-          <div className="space-y-6 text-center">
-            <div className="relative">
-              <div className="h-24 w-24 rounded-full border-t-2 border-b-2 border-indigo-500 animate-spin"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <LoadingSpinner 
+        fullScreen 
+        size="lg" 
+        text="Setting up your workspace..." 
+      />
     );
   }
 
