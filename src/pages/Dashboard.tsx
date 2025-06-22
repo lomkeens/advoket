@@ -307,6 +307,13 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Debug section - only show if there are issues */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8">
+          <ConnectionTest />
+        </div>
+      )}
     </div>
   );
 };
