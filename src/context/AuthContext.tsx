@@ -39,32 +39,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('[AuthContext] useEffect: user', user, 'loading', loading, 'error', error);
-  }, [user, loading, error]);
+    console.log('[AuthContext] Current state:', { 
+      user: user?.id, 
+      loading, 
+      error,
+      profile: profile?.id 
+    });
+  }, [user, loading, error, profile]);
 
   useEffect(() => {
     let mounted = true;
-    // Fallback: clear loading after 5 seconds no matter what
+    
+    // Fallback: clear loading after 10 seconds no matter what
     const loadingTimeout = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 5000);
+      if (mounted) {
+        console.log('[AuthContext] Loading timeout reached, forcing loading to false');
+        setLoading(false);
+      }
+    }, 10000);
 
     const init = async () => {
       try {
-        console.log('[AuthContext] Initializing session');
+        console.log('[AuthContext] Initializing session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
         if (sessionError) {
+          console.error('[AuthContext] Session error:', sessionError);
           throw sessionError;
         }
 
         if (session) {
+          console.log('[AuthContext] Session found:', session.user.id);
           setSession(session);
           setUser(session.user);
           await fetchProfile(session.user);
         } else {
+          console.log('[AuthContext] No session found');
           // If no session, explicitly set states to null to avoid loading state
           setSession(null);
           setUser(null);
@@ -80,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
       } finally {
         if (mounted) {
+          console.log('[AuthContext] Initialization complete, setting loading to false');
           setLoading(false);
         }
       }
@@ -114,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (user: User) => {
     try {
+      console.log('[AuthContext] Fetching profile for user:', user.id);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -128,9 +142,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
           return;
         }
+        console.error('[AuthContext] Profile fetch error:', error);
         throw error;
       }
       
+      console.log('[AuthContext] Profile fetched successfully:', data.id);
       setProfile(data);
     } catch (error: any) {
       console.error('[AuthContext] Profile fetch error:', error);
@@ -176,20 +192,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       setError(null);
+      console.log('[AuthContext] Attempting sign up for:', email);
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
+        console.error('[AuthContext] Sign up error:', error);
         setError(error.message);
+      } else {
+        console.log('[AuthContext] Sign up successful');
       }
     } catch (error) {
+      console.error('[AuthContext] Sign up error:', error);
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
+  
   const signOut = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[AuthContext] Attempting sign out');
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('[AuthContext] Sign out error:', error);
@@ -267,11 +290,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     error
   };
-
-  // Debug log for every render
-  useEffect(() => {
-    console.log('[AuthContext] Render: user', user, 'loading', loading, 'error', error, 'session', session);
-  });
 
   return (
     <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

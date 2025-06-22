@@ -2,37 +2,40 @@ import { supabase } from '../lib/supabase';
 
 export const testSupabaseConnection = async () => {
   try {
-    console.log('Testing Supabase connection...');
+    console.log('[ConnectionTest] Starting Supabase connection test...');
     
     // Test 1: Basic connection
+    console.log('[ConnectionTest] Test 1: Basic connection...');
     const { data: healthCheck, error: healthError } = await supabase
       .from('profiles')
       .select('count')
       .limit(1);
     
     if (healthError) {
-      console.error('Health check failed:', healthError);
-      return { success: false, error: healthError.message };
+      console.error('[ConnectionTest] Health check failed:', healthError);
+      return { success: false, error: `Health check failed: ${healthError.message}` };
     }
     
-    console.log('✅ Basic connection successful');
+    console.log('[ConnectionTest] ✅ Basic connection successful');
     
     // Test 2: Authentication status
+    console.log('[ConnectionTest] Test 2: Authentication status...');
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError) {
-      console.error('Auth check failed:', authError);
-      return { success: false, error: authError.message };
+      console.error('[ConnectionTest] Auth check failed:', authError);
+      return { success: false, error: `Auth check failed: ${authError.message}` };
     }
     
     if (!user) {
-      console.log('⚠️ No authenticated user');
-      return { success: false, error: 'No authenticated user' };
+      console.log('[ConnectionTest] ⚠️ No authenticated user');
+      return { success: false, error: 'No authenticated user found. Please log in.' };
     }
     
-    console.log('✅ User authenticated:', user.email);
+    console.log('[ConnectionTest] ✅ User authenticated:', user.email);
     
     // Test 3: Check if user profile exists
+    console.log('[ConnectionTest] Test 3: Profile check...');
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -40,12 +43,12 @@ export const testSupabaseConnection = async () => {
       .single();
     
     if (profileError && profileError.code !== 'PGRST116') {
-      console.error('Profile check failed:', profileError);
-      return { success: false, error: profileError.message };
+      console.error('[ConnectionTest] Profile check failed:', profileError);
+      return { success: false, error: `Profile check failed: ${profileError.message}` };
     }
     
     if (!profile) {
-      console.log('⚠️ No profile found, creating one...');
+      console.log('[ConnectionTest] ⚠️ No profile found, creating one...');
       
       // Create profile if it doesn't exist
       const { error: createError } = await supabase
@@ -58,32 +61,40 @@ export const testSupabaseConnection = async () => {
         }]);
       
       if (createError) {
-        console.error('Failed to create profile:', createError);
-        return { success: false, error: createError.message };
+        console.error('[ConnectionTest] Failed to create profile:', createError);
+        return { success: false, error: `Failed to create profile: ${createError.message}` };
       }
       
-      console.log('✅ Profile created successfully');
+      console.log('[ConnectionTest] ✅ Profile created successfully');
     } else {
-      console.log('✅ Profile exists:', profile.full_name || profile.email);
+      console.log('[ConnectionTest] ✅ Profile exists:', profile.full_name || profile.email);
     }
     
     // Test 4: Check database functions
+    console.log('[ConnectionTest] Test 4: Database functions...');
     try {
       const { data: statsData, error: statsError } = await supabase
         .rpc('get_dashboard_stats', { user_id: user.id });
       
       if (statsError) {
-        console.error('Dashboard stats function failed:', statsError);
-        return { success: false, error: `Dashboard function error: ${statsError.message}` };
+        console.error('[ConnectionTest] Dashboard stats function failed:', statsError);
+        return { 
+          success: false, 
+          error: `Dashboard function error: ${statsError.message}. This might be because the database functions haven't been deployed yet.` 
+        };
       }
       
-      console.log('✅ Dashboard stats function working:', statsData);
+      console.log('[ConnectionTest] ✅ Dashboard stats function working:', statsData);
     } catch (funcError) {
-      console.error('Function test failed:', funcError);
-      return { success: false, error: `Function test failed: ${funcError}` };
+      console.error('[ConnectionTest] Function test failed:', funcError);
+      return { 
+        success: false, 
+        error: `Function test failed: ${funcError}. Database functions may not be available.` 
+      };
     }
     
     // Test 5: Check firm settings
+    console.log('[ConnectionTest] Test 5: Firm settings...');
     const { data: firmSettings, error: firmError } = await supabase
       .from('firm_settings')
       .select('*')
@@ -91,14 +102,33 @@ export const testSupabaseConnection = async () => {
       .single();
     
     if (firmError && firmError.code !== 'PGRST116') {
-      console.error('Firm settings check failed:', firmError);
-      return { success: false, error: firmError.message };
+      console.error('[ConnectionTest] Firm settings check failed:', firmError);
+      return { success: false, error: `Firm settings error: ${firmError.message}` };
     }
     
     if (!firmSettings) {
-      console.log('⚠️ No firm settings found - this is normal for new users');
+      console.log('[ConnectionTest] ⚠️ No firm settings found - this is normal for new users');
     } else {
-      console.log('✅ Firm settings found:', firmSettings.firm_name);
+      console.log('[ConnectionTest] ✅ Firm settings found:', firmSettings.firm_name);
+    }
+
+    // Test 6: Check basic table access
+    console.log('[ConnectionTest] Test 6: Table access...');
+    try {
+      const { count: clientCount } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id);
+
+      const { count: caseCount } = await supabase
+        .from('cases')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id);
+
+      console.log('[ConnectionTest] ✅ Table access working - Clients:', clientCount, 'Cases:', caseCount);
+    } catch (tableError) {
+      console.error('[ConnectionTest] Table access failed:', tableError);
+      return { success: false, error: `Table access failed: ${tableError}` };
     }
     
     return { 
@@ -106,11 +136,11 @@ export const testSupabaseConnection = async () => {
       user: user,
       profile: profile,
       firmSettings: firmSettings,
-      message: 'All connection tests passed successfully!' 
+      message: 'All connection tests passed successfully! Your database is properly configured.' 
     };
     
   } catch (error: any) {
-    console.error('Connection test failed:', error);
-    return { success: false, error: error.message || 'Unknown error occurred' };
+    console.error('[ConnectionTest] Connection test failed:', error);
+    return { success: false, error: error.message || 'Unknown error occurred during connection test' };
   }
 };

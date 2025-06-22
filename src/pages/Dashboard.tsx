@@ -11,6 +11,8 @@ import { Link } from 'react-router-dom';
 const Dashboard: React.FC = () => {
   const { stats, recentCases, upcomingHearings, recentDocuments, loading, error } = useDashboardStats();
 
+  console.log('[Dashboard] Render state:', { loading, error, stats, recentCases: recentCases.length });
+
   if (loading) {
     return (
       <div className="p-6 bg-gray-50 min-h-full">
