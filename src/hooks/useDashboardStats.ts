@@ -207,6 +207,41 @@ export const useDashboardStats = () => {
 
         setRecentDocuments(documentsData);
 
+        // If no data exists, optionally create sample data for demo purposes
+        if (statsData && statsData.total_cases === 0 && statsData.total_documents === 0) {
+          console.log('[useDashboardStats] No data found, creating sample data...');
+          try {
+            await supabase.rpc('create_sample_data', { user_id: user.id });
+            // Refetch stats after creating sample data
+            const { data: newStats } = await supabase
+              .rpc('get_dashboard_stats', { user_id: user.id });
+            if (newStats) {
+              setStats(newStats);
+            }
+            
+            // Refetch other data
+            const { data: newCases } = await supabase
+              .rpc('get_recent_cases', { user_id: user.id, limit_count: 5 });
+            if (newCases) {
+              setRecentCases(newCases);
+            }
+            
+            const { data: newDocs } = await supabase
+              .rpc('get_recent_documents', { user_id: user.id, limit_count: 5 });
+            if (newDocs) {
+              setRecentDocuments(newDocs);
+            }
+            
+            const { data: newHearings } = await supabase
+              .rpc('get_upcoming_hearings', { user_id: user.id, limit_count: 5 });
+            if (newHearings) {
+              setUpcomingHearings(newHearings);
+            }
+          } catch (sampleError) {
+            console.warn('[useDashboardStats] Failed to create sample data:', sampleError);
+          }
+        }
+
         console.log('[useDashboardStats] Dashboard data fetch completed successfully');
 
       } catch (err: any) {
@@ -320,10 +355,10 @@ export const useDashboardStats = () => {
         title: item.title,
         status: item.status,
         priority: item.priority,
-        case_type: item.case_type,
+        case_type: item.case_type || 'General',
         client_name: item.client?.name || 'Unknown Client',
         client_id: item.client?.id || '',
-        assigned_to_name: item.assigned_to?.full_name || '',
+        assigned_to_name: item.assigned_to?.full_name || 'Unassigned',
         created_at: item.created_at,
         due_date: item.due_date
       }));
@@ -362,9 +397,9 @@ export const useDashboardStats = () => {
       return (data || []).map(item => ({
         id: item.id,
         title: item.title,
-        description: item.description,
+        description: item.description || '',
         start_date: item.start_date,
-        location: item.location,
+        location: item.location || '',
         case_title: item.case?.title || '',
         case_id: item.case?.id || '',
         client_name: item.case?.client?.name || ''
@@ -404,9 +439,9 @@ export const useDashboardStats = () => {
       return (data || []).map(item => ({
         id: item.id,
         name: item.name,
-        description: item.description,
-        file_type: item.file_type,
-        size: item.size,
+        description: item.description || '',
+        file_type: item.file_type || '',
+        size: item.size || 0,
         uploaded_at: item.uploaded_at,
         case_title: item.case?.title || '',
         case_id: item.case?.id || '',
